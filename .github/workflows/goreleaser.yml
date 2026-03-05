@@ -34,6 +34,10 @@ jobs:
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
         with:
           go-version: 1.26.x
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev libxxf86vm-dev
       - name: install zig
         uses: mlugg/setup-zig@v2
         with:
