@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - main
+      - master
       - next
     tags:
       - "*"
@@ -91,11 +91,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: push docker images (for branches)
-        if: github.ref == 'refs/heads/main' || github.event.pull_request.base.ref == 'main'
+        if: github.ref == 'refs/heads/master' || github.event.pull_request.base.ref == 'master'
         run: |
           docker images --format "{{.Repository}}:{{.Tag}}" | grep "${{ github.repository }}" | xargs -L1 docker push
       - name: upload artifacts
-        if: github.event.pull_request.base.ref == 'main'
+        if: github.event.pull_request.base.ref == 'master'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: binaries
