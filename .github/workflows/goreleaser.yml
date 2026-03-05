@@ -66,13 +66,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ADL_KEY: ${{ secrets.ADL_KEY }}
       - name: upload artifacts
-        if: github.event.pull_request.base.ref == 'master'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: binaries
-          path: releases/*.tar.gz
+          path: dist/*.{tar.gz,zip}
       - name: upload windows exe for installer
-        if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: windows-exe
@@ -80,7 +78,6 @@ jobs:
 
   windows-installer:
     needs: release
-    if: startsWith(github.ref, 'refs/tags/')
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
@@ -91,10 +88,15 @@ jobs:
           name: windows-exe
           path: installer/windows/bin
 
-      - name: get version from tag
+      - name: get version from tag or snapshot
         id: version
         shell: bash
-        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=0.0.0-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: build installer
         shell: cmd
@@ -102,6 +104,7 @@ jobs:
           iscc /DMyAppVersion=${{ steps.version.outputs.version }} /DMyAppExeSource=bin\tribaloutpost-adl.exe installer\windows\setup.iss
 
       - name: upload installer to release
+        if: startsWith(github.ref, 'refs/tags/')
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -109,3 +112,9 @@ jobs:
           gh release upload "${{ github.ref_name }}" \
             installer/windows/output/tribaloutpost-adl-v${{ steps.version.outputs.version }}-windows-amd64-setup.exe \
             --clobber
+
+      - name: upload installer artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-installer
+          path: installer/windows/output/*.exe
