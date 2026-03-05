@@ -14,19 +14,13 @@ builds:
     goos:
       - linux
       - windows
-      - darwin
     goarch:
       - amd64
-      - arm64
     overrides:
       - goos: linux
         goarch: amd64
         env:
           - CC=zig cc -target x86_64-linux-gnu
-      - goos: linux
-        goarch: arm64
-        env:
-          - CC=zig cc -target aarch64-linux-gnu
       - goos: windows
         goarch: amd64
         env:
@@ -38,25 +32,6 @@ builds:
           - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
           - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
           - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
-      - goos: windows
-        goarch: arm64
-        env:
-          - CC=zig cc -target aarch64-windows-gnu
-        ldflags:
-          - -s -w -H windowsgui
-          - -X '{{ .ModulePath }}/pkg/common.SUMMARY=v{{ .Version }}'
-          - -X '{{ .ModulePath }}/pkg/common.BRANCH={{ .Branch }}'
-          - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
-          - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
-          - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
-      - goos: darwin
-        goarch: amd64
-        env:
-          - CC=zig cc -target x86_64-macos
-      - goos: darwin
-        goarch: arm64
-        env:
-          - CC=zig cc -target aarch64-macos
     flags:
       - -trimpath
     ldflags:
@@ -81,7 +56,6 @@ archives:
 signs:
   - ids:
       - default
-      - darwin
     cmd: cosign
     signature: "${artifact}.sig"
     certificate: "${artifact}.pem"
