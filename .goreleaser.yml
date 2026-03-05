@@ -17,10 +17,6 @@ builds:
     goarch:
       - amd64
     overrides:
-      - goos: linux
-        goarch: amd64
-        env:
-          - CC=zig cc -target x86_64-linux-gnu
       - goos: windows
         goarch: amd64
         env:
