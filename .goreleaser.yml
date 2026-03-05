@@ -1,0 +1,114 @@
+version: 2
+release:
+  github:
+    owner: sfphinx
+    name: tribaloutpost-auto-downloader
+before:
+  hooks:
+    - go generate ./...
+builds:
+  - id: tribaloutpost-adl
+    binary: tribaloutpost-adl
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    overrides:
+      - goos: linux
+        goarch: amd64
+        env:
+          - CC=zig cc -target x86_64-linux-gnu
+      - goos: linux
+        goarch: arm64
+        env:
+          - CC=zig cc -target aarch64-linux-gnu
+      - goos: windows
+        goarch: amd64
+        env:
+          - CC=zig cc -target x86_64-windows-gnu
+        ldflags:
+          - -s -w -H windowsgui
+          - -X '{{ .ModulePath }}/pkg/common.SUMMARY=v{{ .Version }}'
+          - -X '{{ .ModulePath }}/pkg/common.BRANCH={{ .Branch }}'
+          - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
+          - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
+          - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
+      - goos: windows
+        goarch: arm64
+        env:
+          - CC=zig cc -target aarch64-windows-gnu
+        ldflags:
+          - -s -w -H windowsgui
+          - -X '{{ .ModulePath }}/pkg/common.SUMMARY=v{{ .Version }}'
+          - -X '{{ .ModulePath }}/pkg/common.BRANCH={{ .Branch }}'
+          - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
+          - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
+          - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
+      - goos: darwin
+        goarch: amd64
+        env:
+          - CC=zig cc -target x86_64-macos
+      - goos: darwin
+        goarch: arm64
+        env:
+          - CC=zig cc -target aarch64-macos
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X '{{ .ModulePath }}/pkg/common.SUMMARY=v{{ .Version }}'
+      - -X '{{ .ModulePath }}/pkg/common.BRANCH={{ .Branch }}'
+      - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
+      - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
+      - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
+    mod_timestamp: "{{ .CommitTimestamp }}"
+    hooks:
+      post:
+        - cmd: |
+            {{- if eq .Os "darwin" -}}
+            quill sign-and-notarize "{{ .Path }}" --dry-run={{ .IsSnapshot }} --ad-hoc={{ .IsSnapshot }} -vv
+            {{- else -}}
+            true
+            {{- end -}}
+          env:
+            - QUILL_LOG_FILE=/tmp/quill-{{ .Target }}.log
+sboms:
+  - artifacts: archive
+archives:
+  - id: tribaloutpost-adl
+    builds:
+      - tribaloutpost-adl
+    name_template: "{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ .Arm }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+signs:
+  - ids:
+      - default
+      - darwin
+    cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      [
+        "sign-blob",
+        "--yes",
+        "--oidc-provider=github",
+        "--oidc-issuer=https://token.actions.githubusercontent.com",
+        "--output-certificate=${certificate}",
+        "--output-signature=${signature}",
+        "${artifact}",
+      ]
+    artifacts: all
+checksum:
+  name_template: "checksums.txt"
+snapshot:
+  version_template: '{{ trimprefix .Summary "v" }}'
+changelog:
+  disable: true

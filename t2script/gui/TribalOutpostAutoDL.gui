@@ -1,0 +1,169 @@
+//--- OBJECT WRITE BEGIN ---
+new GuiControl(TOADInitialPromptDlg) {
+	profile = "DlgBackProfile";
+	horizSizing = "width";
+	vertSizing = "height";
+	position = "0 0";
+	extent = "640 480";
+	minExtent = "8 8";
+	visible = "1";
+	helpTag = "0";
+
+	new ShellPaneCtrl(TOADInitialPromptFrame) {
+		profile = "ShellDlgPaneProfile";
+		horizSizing = "center";
+		vertSizing = "center";
+		extent = "500 250";
+		minExtent = "48 92";
+		visible = "1";
+		helpTag = "0";
+		text = "TribalOutpost AutoDownload";
+
+		new GuiMLTextCtrl(TOADInitialPromptText) {
+			profile = "ShellMediumTextProfile";
+			horizSizing = "center";
+			vertSizing = "bottom";
+			position = "32 39";
+			extent = "450 18";
+			minExtent = "8 8";
+			visible = "1";
+			helpTag = "0";
+			lineSpacing = "2";
+		};
+		new ShellBitmapButton() {
+			profile = "ShellButtonProfile";
+			horizSizing = "right";
+			vertSizing = "bottom";
+			position = "126 163";
+			extent = "120 38";
+			minExtent = "32 38";
+			visible = "1";
+			command = "TOADInitiateDownload();";
+			accelerator = "enter";
+			helpTag = "0";
+			text = "YES";
+			simpleStyle = "0";
+		};
+		new ShellBitmapButton() {
+			profile = "ShellButtonProfile";
+			horizSizing = "right";
+			vertSizing = "bottom";
+			position = "254 163";
+			extent = "120 38";
+			minExtent = "32 38";
+			visible = "1";
+			command = "TOADNoDownload();";
+			accelerator = "escape";
+			helpTag = "0";
+			text = "NO";
+			simpleStyle = "0";
+		};
+		new GuiMLTextCtrl(TOADInitialPromptFileText) {
+			profile = "ShellSmallTextProfile";
+			horizSizing = "center";
+			vertSizing = "bottom";
+			position = "32 210";
+			extent = "450 18";
+			minExtent = "8 8";
+			visible = "1";
+			helpTag = "0";
+			lineSpacing = "2";
+		};
+	};
+};
+//--- OBJECT WRITE END ---
+
+//--- OBJECT WRITE BEGIN ---
+new GuiControl(TOADProgressDlg) {
+	profile = "DlgBackProfile";
+	horizSizing = "width";
+	vertSizing = "height";
+	position = "0 0";
+	extent = "640 480";
+	minExtent = "8 8";
+	visible = "1";
+	helpTag = "0";
+
+	new ShellPaneCtrl(TOADProgressFrame) {
+		profile = "ShellDlgPaneProfile";
+		horizSizing = "center";
+		vertSizing = "center";
+		extent = "400 205";
+		minExtent = "48 92";
+		visible = "1";
+		helpTag = "0";
+		text = "AutoDownload";
+
+		new GuiMLTextCtrl(TOADProgressStatusText) {
+			profile = "ShellMediumTextProfile";
+			horizSizing = "center";
+			vertSizing = "bottom";
+			position = "32 46";
+			extent = "340 18";
+			minExtent = "8 8";
+			visible = "1";
+			helpTag = "0";
+			lineSpacing = "2";
+		};
+		new GuiMLTextCtrl(TOADProgressBytesText) {
+			profile = "ShellSmallTextProfile";
+			horizSizing = "left";
+			vertSizing = "bottom";
+			position = "28 85";
+			extent = "340 18";
+			minExtent = "8 8";
+			visible = "1";
+			helpTag = "0";
+			lineSpacing = "2";
+		};
+		new GuiMLTextCtrl(TOADProgressTimeRemText) {
+			profile = "ShellSmallTextProfile";
+			horizSizing = "left";
+			vertSizing = "bottom";
+			position = "28 100";
+			extent = "340 18";
+			minExtent = "8 8";
+			visible = "1";
+			helpTag = "0";
+			lineSpacing = "2";
+		};
+		new GuiProgressCtrl(TOADProgress) {
+			profile = "ShellProgressBarProfile";
+			horizSizing = "right";
+			vertSizing = "top";
+			position = "25 120";
+			extent = "350 25";
+			minExtent = "8 8";
+			visible = "1";
+			helpTag = "0";
+
+			new GuiTextCtrl(TOADProgressText) {
+				profile = "ShellProgressBarTextProfile";
+				horizSizing = "right";
+				vertSizing = "bottom";
+				position = "0 3";
+				extent = "350 19";
+				minExtent = "8 8";
+				visible = "1";
+				helpTag = "0";
+				text = "Downloading";
+				maxLength = "255";
+			};
+		};
+		new ShellBitmapButton(TOADCancelButton) {
+			profile = "ShellButtonProfile";
+			horizSizing = "right";
+			vertSizing = "bottom";
+			position = "140 149";
+			extent = "120 38";
+			minExtent = "32 38";
+			visible = "1";
+			command = "TOADCancelDownload();";
+			helpTag = "0";
+			text = "Cancel";
+			simpleStyle = "0";
+			accelerator = "escape";
+		};
+	};
+};
+//--- OBJECT WRITE END ---

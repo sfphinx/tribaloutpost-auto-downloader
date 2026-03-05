@@ -1,0 +1,140 @@
+name: goreleaser
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - next
+    tags:
+      - "*"
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        if: github.event_name != 'pull_request'
+        with:
+          fetch-depth: 0
+      - name: setup-go
+        uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
+        with:
+          go-version: 1.26.x
+      - uses: anchore/sbom-action/download-syft@28d71544de8eaf1b958d335707167c5f783590ad # v0.22.2
+      - name: setup qemu
+        id: qemu
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - name: setup docker buildx
+        id: buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: install cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+      - name: install quill
+        env:
+          QUILL_VERSION: 0.4.1
+        run: |
+          curl -Lo /tmp/quill_${QUILL_VERSION}_linux_amd64.tar.gz https://github.com/anchore/quill/releases/download/v${QUILL_VERSION}/quill_${QUILL_VERSION}_linux_amd64.tar.gz
+          tar -xvf /tmp/quill_${QUILL_VERSION}_linux_amd64.tar.gz -C /tmp
+          mv /tmp/quill /usr/local/bin/quill
+          chmod +x /usr/local/bin/quill
+      - name: set goreleaser default args
+        if: startsWith(github.ref, 'refs/tags/') == true
+        run: |
+          echo "GORELEASER_ARGS=" >> $GITHUB_ENV
+      - name: set goreleaser args for branch
+        if: startsWith(github.ref, 'refs/tags/') == false
+        run: |
+          echo "GORELEASER_ARGS=--snapshot" >> $GITHUB_ENV
+      - name: set goreleaser args renovate
+        if: startsWith(github.ref, 'refs/heads/renovate') == true
+        run: |
+          echo "GORELEASER_ARGS=--snapshot --skip publish --skip sign" >> $GITHUB_ENV
+      - name: setup-quill
+        uses: 1password/load-secrets-action@8d0d610af187e78a2772c2d18d627f4c52d3fbfb # v3
+        # Extra Safeguard - This ensures the secrets are only loaded on tag and a tag that the repo owner triggered
+        if: startsWith(github.ref, 'refs/tags/') == true && github.actor == github.repository_owner
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          QUILL_NOTARY_KEY: ${{ secrets.OP_QUILL_NOTARY_KEY }}
+          QUILL_NOTARY_KEY_ID: ${{ secrets.OP_QUILL_NOTARY_KEY_ID }}
+          QUILL_NOTARY_ISSUER: ${{ secrets.OP_QUILL_NOTARY_ISSUER }}
+          QUILL_SIGN_PASSWORD: ${{ secrets.OP_QUILL_SIGN_PASSWORD }}
+          QUILL_SIGN_P12: ${{ secrets.OP_QUILL_SIGN_P12 }}
+      - name: run goreleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean ${{ env.GORELEASER_ARGS }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: push docker images (for branches)
+        if: github.ref == 'refs/heads/main' || github.event.pull_request.base.ref == 'main'
+        run: |
+          docker images --format "{{.Repository}}:{{.Tag}}" | grep "${{ github.repository }}" | xargs -L1 docker push
+      - name: upload artifacts
+        if: github.event.pull_request.base.ref == 'main'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: binaries
+          path: releases/*.tar.gz
+      - name: upload windows exe for installer
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-exe
+          path: dist/tribaloutpost-adl_windows_amd64_v1/tribaloutpost-adl.exe
+
+  windows-installer:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+
+      - name: download windows exe
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          name: windows-exe
+          path: installer/windows/bin
+
+      - name: get version from tag
+        id: version
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: build installer
+        shell: cmd
+        run: |
+          iscc /DMyAppVersion=${{ steps.version.outputs.version }} /DMyAppExeSource=bin\tribaloutpost-adl.exe installer\windows\setup.iss
+
+      - name: upload installer to release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            installer/windows/output/tribaloutpost-adl-v${{ steps.version.outputs.version }}-windows-amd64-setup.exe \
+            --clobber

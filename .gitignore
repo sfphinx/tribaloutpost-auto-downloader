@@ -1,0 +1,13 @@
+.idea/
+dist/
+public/
+.env*
+*.key
+tmp/
+bin/
+
+# Generated VL2 (built from t2script/ sources via go generate)
+pkg/vl2/TribalOutpostAutoDL.vl2
+
+# Installer output
+installer/windows/output/
