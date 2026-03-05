@@ -1,5 +1,6 @@
 .idea/
 dist/
+.zig-cache/
 public/
 .env*
 *.key
