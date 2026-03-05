@@ -22,7 +22,7 @@ builds:
         env:
           - CC=zig cc -target x86_64-windows-gnu
         ldflags:
-          - -s -w -H windowsgui
+          - -s -w -H windowsgui -extldflags '-Wl,--subsystem,windows'
           - -X '{{ .ModulePath }}/pkg/common.SUMMARY=v{{ .Version }}'
           - -X '{{ .ModulePath }}/pkg/common.BRANCH={{ .Branch }}'
           - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
