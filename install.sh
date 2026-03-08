@@ -61,8 +61,20 @@ esac
 
 # Offer to enable autostart
 echo ""
-printf "Enable automatic startup on login? [y/N] "
-read -r REPLY
+if [ -t 0 ]; then
+    TTY=/dev/stdin
+elif [ -e /dev/tty ]; then
+    TTY=/dev/tty
+else
+    TTY=""
+fi
+
+if [ -n "$TTY" ]; then
+    printf "Enable automatic startup on login? [y/N] "
+    read -r REPLY < "$TTY"
+else
+    REPLY=""
+fi
 case "$REPLY" in
     [yY]*)
         "$INSTALL_DIR/$BINARY" autostart enable
