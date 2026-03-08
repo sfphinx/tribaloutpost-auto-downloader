@@ -2,6 +2,8 @@ package downloader
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +16,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/sfphinx/tribaloutpost-auto-downloader/pkg/common"
+	"github.com/sfphinx/tribaloutpost-auto-downloader/pkg/signing"
 )
 
 // ResolveResponse is the JSON response from the resolve endpoint
@@ -85,7 +88,18 @@ func (d *Downloader) Resolve(ctx context.Context, displayName, filename string) 
 	return &result, nil
 }
 
-// Download fetches a VL2 file and saves it to the output directory
+// VerifyResponse is the JSON response from the verify endpoint
+type VerifyResponse struct {
+	Type      string `json:"type"`
+	Slug      string `json:"slug"`
+	SHA256    string `json:"sha256"`
+	Signature string `json:"signature"`
+	KeyID     string `json:"key_id"`
+}
+
+// Download fetches a VL2 file and saves it to the output directory.
+// If a public key is configured, it verifies the file via the /api/adl/verify
+// endpoint before finalizing the write.
 func (d *Downloader) Download(ctx context.Context, resolved *ResolveResponse, outputDir string) (string, error) {
 	downloadURL := fmt.Sprintf("%s%s", d.serverURL, resolved.DownloadURL)
 
@@ -116,7 +130,6 @@ func (d *Downloader) Download(ctx context.Context, resolved *ResolveResponse, ou
 	// Determine output filename from Content-Disposition or slug
 	vl2Filename := resolved.Slug + ".vl2"
 	if cd := resp.Header.Get("Content-Disposition"); cd != "" {
-		// Try to extract filename from header
 		if idx := len("filename="); len(cd) > idx {
 			for _, part := range splitContentDisposition(cd) {
 				if len(part) > 0 {
@@ -129,14 +142,15 @@ func (d *Downloader) Download(ctx context.Context, resolved *ResolveResponse, ou
 
 	outputPath := filepath.Join(outputDir, vl2Filename)
 
-	// Write to a temp file first, then rename for atomicity
+	// Write to a temp file, hashing as we go
 	tmpPath := outputPath + ".tmp"
 	f, err := os.Create(tmpPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to create output file: %w", err)
 	}
 
-	written, err := io.Copy(f, resp.Body)
+	h := sha256.New()
+	written, err := io.Copy(f, io.TeeReader(resp.Body, h))
 	if err != nil {
 		f.Close()
 		os.Remove(tmpPath)
@@ -144,18 +158,87 @@ func (d *Downloader) Download(ctx context.Context, resolved *ResolveResponse, ou
 	}
 	f.Close()
 
+	fileHash := hex.EncodeToString(h.Sum(nil))
+
+	// Verify the download if a public key is configured
+	if signing.HasPublicKey() {
+		if err := d.verifyDownload(ctx, "map", resolved.Slug, fileHash); err != nil {
+			os.Remove(tmpPath)
+			return "", err
+		}
+		d.log.Debug("download signature verified")
+	} else {
+		d.log.Warn("no public key configured, skipping download verification")
+	}
+
 	if err := os.Rename(tmpPath, outputPath); err != nil {
 		os.Remove(tmpPath)
 		return "", fmt.Errorf("failed to finalize VL2 file: %w", err)
 	}
 
 	d.log.WithFields(logrus.Fields{
-		"file":  vl2Filename,
-		"bytes": written,
-		"path":  outputPath,
+		"file":     vl2Filename,
+		"bytes":    written,
+		"sha256":   fileHash,
+		"path":     outputPath,
+		"verified": signing.HasPublicKey(),
 	}).Info("VL2 downloaded successfully")
 
 	return vl2Filename, nil
+}
+
+// verifyDownload calls the /api/adl/verify endpoint and verifies the file hash
+// and Ed25519 signature locally.
+func (d *Downloader) verifyDownload(ctx context.Context, contentType, slug, fileHash string) error {
+	verifyURL := fmt.Sprintf("%s/api/adl/verify/%s/%s", d.serverURL, contentType, slug)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, verifyURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create verify request: %w", err)
+	}
+	req.Header.Set("User-Agent", "TribalOutpostADL/"+common.VERSION)
+	if common.ADLKey != "" {
+		req.Header.Set("X-ADL-Key", common.ADLKey)
+	}
+
+	d.log.WithField("url", verifyURL).Debug("requesting verification data")
+
+	resp, err := d.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("verify request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("verify endpoint returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var vr VerifyResponse
+	if err := json.NewDecoder(resp.Body).Decode(&vr); err != nil {
+		return fmt.Errorf("failed to parse verify response: %w", err)
+	}
+
+	// Check key ID matches our embedded key
+	localKeyID, err := signing.KeyID()
+	if err != nil {
+		return fmt.Errorf("failed to compute local key ID: %w", err)
+	}
+	if vr.KeyID != localKeyID {
+		return fmt.Errorf("key ID mismatch: server=%s local=%s (companion may need an update)", vr.KeyID, localKeyID)
+	}
+
+	// Check file hash matches
+	if vr.SHA256 != fileHash {
+		return fmt.Errorf("hash mismatch: expected %s, got %s", vr.SHA256, fileHash)
+	}
+
+	// Verify the Ed25519 signature over "{type}:{slug}:{sha256}"
+	if err := signing.Verify(vr.Type, vr.Slug, vr.SHA256, vr.Signature); err != nil {
+		return fmt.Errorf("download verification failed: %w", err)
+	}
+
+	return nil
 }
 
 func splitContentDisposition(cd string) []string {

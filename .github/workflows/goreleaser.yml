@@ -65,6 +65,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ADL_KEY: ${{ secrets.ADL_KEY }}
+          ADL_PUBLIC_KEY: ${{ secrets.ADL_PUBLIC_KEY }}
       - name: upload artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:

@@ -28,6 +28,7 @@ builds:
           - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
           - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
           - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
+          - -X '{{ .ModulePath }}/pkg/signing.PublicKeyBase64={{ .Env.ADL_PUBLIC_KEY }}'
     flags:
       - -trimpath
     ldflags:
@@ -38,6 +39,7 @@ builds:
       - -X '{{ .ModulePath }}/pkg/common.VERSION={{ .Tag }}'
       - -X '{{ .ModulePath }}/pkg/common.COMMIT={{ .Commit }}'
       - -X '{{ .ModulePath }}/pkg/common.ADLKey={{ .Env.ADL_KEY }}'
+      - -X '{{ .ModulePath }}/pkg/signing.PublicKeyBase64={{ .Env.ADL_PUBLIC_KEY }}'
     mod_timestamp: "{{ .CommitTimestamp }}"
 sboms:
   - artifacts: archive

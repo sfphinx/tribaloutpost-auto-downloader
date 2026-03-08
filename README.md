@@ -76,8 +76,19 @@ tribaloutpost-adl --headless
 
 1. A T2 script VL2 is installed into your `GameData/base/` directory
 2. When you join a server that requires a map you don't have, the T2 script writes a request file to `GameData/base/TribalOutpostAutoDL/`
-3. The companion watches that directory, resolves the map on TribalOutpost, downloads the VL2, and writes a response file back
+3. The companion watches that directory, resolves the map on TribalOutpost, downloads the VL2, and cryptographically verifies it before saving
 4. The T2 script picks up the response and loads the map
+
+### Download Verification
+
+All map downloads are cryptographically verified before being installed. After downloading a file, the companion:
+
+1. Computes a SHA-256 hash of the downloaded file
+2. Requests verification data from the TribalOutpost API (expected hash and an Ed25519 signature)
+3. Confirms the key ID matches the public key embedded in the binary
+4. Verifies the hash matches and the signature is valid
+
+If any check fails, the file is rejected and never written to the GameData directory. This ensures that only authentic, untampered maps from TribalOutpost are installed.
 
 ## Configuration
 
