@@ -27,7 +27,8 @@ echo "Latest version: $LATEST"
 
 # Build download URL
 VERSION=$(echo "$LATEST" | sed 's/^v//')
-ARCHIVE="${BINARY}-v${VERSION}-${OS}-${ARCH}.tar.gz"
+PROJECT="tribaloutpost-auto-downloader"
+ARCHIVE="${PROJECT}-v${VERSION}-${OS}-${ARCH}.tar.gz"
 URL="https://github.com/$REPO/releases/download/$LATEST/$ARCHIVE"
 
 # Download and extract

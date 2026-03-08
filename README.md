@@ -17,7 +17,7 @@ Or download the standalone zip if you prefer to manage it yourself.
 Run the install script:
 
 ```console
-curl -fsSL https://raw.githubusercontent.com/sfphinx/tribaloutpost-auto-downloader/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/sfphinx/tribaloutpost-auto-downloader/master/install.sh | sh
 ```
 
 Or manually download the tarball from the [latest release](https://github.com/sfphinx/tribaloutpost-auto-downloader/releases/latest), extract it, and place the binary somewhere in your `PATH`.
